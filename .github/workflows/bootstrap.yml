@@ -1,8 +1,11 @@
 name: Infra Bootstrap (One-time setup)
 
+#on:
+#  workflow_dispatch:
 on:
-  workflow_dispatch:
-
+  push:
+    branches:
+      - dev
 jobs:
   bootstrap:
     runs-on: ubuntu-latest

@@ -2,10 +2,7 @@ name: Infra Bootstrap (One-time setup)
 
 #on:
 #  workflow_dispatch:
-on:
-  push:
-    branches:
-      - dev
+
 jobs:
   bootstrap:
     runs-on: ubuntu-latest
@@ -19,7 +16,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          region: us-east-2
+          aws-region: us-east-2
 
       # ------------------------
       # Deploy Base Infra

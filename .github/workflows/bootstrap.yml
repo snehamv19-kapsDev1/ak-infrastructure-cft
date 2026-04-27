@@ -1,7 +1,7 @@
 name: Infra Bootstrap (One-time setup)
 
-#on:
-#  workflow_dispatch:
+on:
+  workflow_dispatch:
 
 jobs:
   bootstrap:

@@ -1,2 +1,110 @@
-this id dev commmit
-fasfasdf
+👉 Config-driven dynamic CI/CD orchestration
+
+infra-repo/
+│
+├── cft/
+│   ├── base-infra.yaml              # S3, IAM roles, core networking (optional VPC)
+│   ├── ssm-parameters.yaml          # initial SSM parameter setup
+│   └── bootstrap-lambda-role.yaml   # base execution role for all lambdas
+│
+├── scripts/
+│   ├── seed-ssm.sh                  # initializes environment config in SSM
+│   └── validate.sh                  # validates CFN templates locally
+│
+├── config/
+│   └── bootstrap-config.json       # single source for initial setup
+│
+├── .github/
+│   └── workflows/
+│       └── bootstrap.yml           # one-time / manual infra deployment
+│
+├── README.md
+└── .gitignore
+
+
+INFRA-REPO (this repo)
+   ↓ creates:
+      - S3 buckets
+      - IAM roles
+      - SSM parameters
+   ↓
+
+LAYER-REPO
+   ↓ writes:
+      /platform/layer/common/latest
+
+SERVICE-REPOS
+   ↓ read:
+      /platform/dev/s3_bucket
+      /platform/layer/common/latest
+   ↓ deploy lambdas + CFN stacks
+
+
+
+
+
+
+
+
+.github/workflows/
+  service-deployment-wf.yml          # CI/CD pipeline (GitHub Actions)
+
+infra/
+  service-cloudformation-template.yml
+  lambda-layer-cloudformation-template.yml
+
+ 1️⃣ service-deployment-wf.yml (GitHub Actions)
+
+👉 Orchestrates everything:
+
+build
+package
+upload to S3
+deploy CloudFormation
+
+Think: pipeline logic
+
+2️⃣ service-cloudformation-template.yml
+
+👉 Defines:
+
+Lambda functions
+API Gateway
+IAM roles
+
+Think: application infrastructure
+
+3️⃣ lambda-layer-cloudformation-template.yml
+
+👉 Defines:
+
+Lambda Layer
+Versioning
+
+Think: shared dependency infrastructure
+
+=====================================================================================================================
+
+🧼 Final architecture (what you want)
+GitHub Actions
+   ↓
+[Detect changes]
+   ↓
+[Deploy Layer Stack]  (only if changed)
+   ↓
+[Deploy Service Stack]
+   ↓
+[Update only changed Lambdas]
+
+
+When this approach shines
+
+This is ideal when:
+
+Multiple stacks (doctor, patient, auth, etc.)
+Monorepo structure
+You want faster CI/CD and avoid unnecessary deploys
+
+
+
+run locallly ./entrypoint.sh dev config/env-config.json cft/doctor.yaml doctor lambdas common-layer

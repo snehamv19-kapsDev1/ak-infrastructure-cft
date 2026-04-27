@@ -1,0 +1,19 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Base Infra for Lambda Platform
+
+Resources:
+
+  ArtifactBucketDev:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: jsvm-dev-lambda-artifacts-bucket
+
+  ArtifactBucketTest:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: jsvm-test-lambda-artifacts-bucket
+
+  ArtifactBucketProd:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: jsvm-prod-lambda-artifacts-bucket

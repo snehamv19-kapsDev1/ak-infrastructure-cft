@@ -1,0 +1,23 @@
+                 ┌──────────────────────────────┐
+                 │ bootstrap-infra-repo        │
+                 │ (Platform / Foundation)      │
+                 └─────────────┬────────────────┘
+                               │
+        Creates + manages SSM + S3 + shared infra
+                               │
+                               ▼
+        ┌────────────────────────────────────────┐
+        │ AWS Systems Manager Parameter Store   │
+        │ /jsvm/dev/code-bucket                 │
+        │ /jsvm/dev/env                         │
+        └────────────────────────────────────────┘
+                               │
+                               ▼
+        ┌────────────────────────────────────────┐
+        │ jsvm-database-service repo            │
+        │ (Application services only)           │
+        └────────────────────────────────────────┘
+                               │
+                   reads SSM → uploads code → deploys CFN
+                               ▼
+                    S3 + Lambda + API Gateway

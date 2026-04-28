@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Base Infra (S3 Artifacts Bucket)
+Description: Bootstrap Platform Infra (SSM + Code Bucket)
 
 Parameters:
   Environment:
@@ -7,20 +7,33 @@ Parameters:
 
 Resources:
 
-  CodeArtifactsBucket:
+  ########################################
+  # CODE ARTIFACT BUCKET
+  ########################################
+  CodeBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub "${Environment}-jsvm-code-artifacts"
-
+      BucketName: jsvm-code-artifacts
       VersioningConfiguration:
         Status: Enabled
 
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: true
-        BlockPublicPolicy: true
-        IgnorePublicAcls: true
-        RestrictPublicBuckets: true
+  ########################################
+  # SSM - SOURCE OF TRUTH
+  ########################################
+  CodeBucketParam:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/jsvm/${Environment}/code-bucket"
+      Type: String
+      Value: !Ref CodeBucket
+
+  EnvParam:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/jsvm/${Environment}/env"
+      Type: String
+      Value: !Ref Environment
 
 Outputs:
   BucketName:
-    Value: !Ref CodeArtifactsBucket
+    Value: !Ref CodeBucket

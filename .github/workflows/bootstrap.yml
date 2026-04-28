@@ -1,11 +1,10 @@
 name: Infra Bootstrap (One-time setup)
 
-#on:
-#  workflow_dispatch:
 on:
   push:
     branches:
       - dev
+
 jobs:
   bootstrap:
     runs-on: ubuntu-latest
@@ -14,29 +13,52 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # ------------------------
+      # SET ENV (based on branch)
+      # ------------------------
+      - name: Set Environment
+        run: |
+          case "${GITHUB_REF_NAME}" in
+            dev) ENV=dev ;;
+            test) ENV=test ;;
+            main) ENV=prod ;;
+            *)
+              echo "Invalid branch"
+              exit 1
+              ;;
+          esac
+
+          echo "ENV=$ENV" >> $GITHUB_ENV
+          echo "ENV=$ENV"
+
+      # ------------------------
+      # AWS AUTH
+      # ------------------------
       - name: Configure AWS
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-2
+          aws-region: us-west-2
 
       # ------------------------
-      # Deploy Base Infra
+      # BASE INFRA (includes S3 bucket)
       # ------------------------
       - name: Deploy Base Infra
         run: |
           aws cloudformation deploy \
             --template-file cft/base-infra.yaml \
-            --stack-name jsvm-bootstrap-infra \
-            --capabilities CAPABILITY_NAMED_IAM
+            --stack-name ${ENV}-jsvm-bootstrap-infra \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --parameter-overrides \
+              Environment=${ENV}
 
       # ------------------------
-      # Initialize SSM
+      # SSM PARAMETERS
       # ------------------------
       - name: Initialize SSM Parameters
         run: |
           aws cloudformation deploy \
             --template-file cft/ssm-parameters.yaml \
-            --stack-name platform-ssm-init \
+            --stack-name ${ENV}-platform-ssm-init \
             --capabilities CAPABILITY_NAMED_IAM

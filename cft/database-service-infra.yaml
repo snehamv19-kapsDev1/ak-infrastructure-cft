@@ -1,0 +1,235 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: S3 JSON DB CRUD Service (Lambda + API Gateway + CloudWatch)
+
+Parameters:
+  Environment:
+    Type: String
+    AllowedValues: [dev, test, prod]
+
+  CodeBucket:
+    Type: String
+
+  CodeKey:
+    Type: String
+
+Resources:
+
+# =========================================================
+# IAM ROLE (LAMBDA) - Done
+# =========================================================
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${Environment}-database-service-lambda-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+
+      Policies:
+        - PolicyName: S3Access
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:*
+                Resource: "*"
+
+        - PolicyName: Logs
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:*
+                Resource: "*"
+
+# =========================================================
+# LOG GROUP
+# =========================================================
+  LambdaLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${Environment}-database-service-lambda"
+      RetentionInDays: 14
+
+# =========================================================
+# LAMBDA - Done
+# =========================================================
+  DatabaseServiceFunction:
+    Type: AWS::Lambda::Function
+    DependsOn: LambdaLogGroup
+    Properties:
+      FunctionName: !Sub "${Environment}-database-service"
+      Runtime: python3.11
+      Handler: lambda_handler.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 20
+
+      Code:
+        S3Bucket: !Ref CodeBucket
+        S3Key: !Ref CodeKey
+
+      Environment:
+        Variables:
+          ENV: !Ref Environment
+          BUCKET: !Ref CodeBucket
+
+# =========================================================
+# API GATEWAY
+# =========================================================
+  DatabaseServiceEndpoint:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: !Sub "${Environment}-database-service-api"
+
+# =========================================================
+# RESOURCES
+# =========================================================
+  Item:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref DatabaseServiceEndpoint
+      ParentId: !GetAtt DatabaseServiceEndpoint.RootResourceId
+      PathPart: item
+
+  ItemId:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref DatabaseServiceEndpoint
+      ParentId: !Ref Item
+      PathPart: "{id}"
+
+  Items:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref DatabaseServiceEndpoint
+      ParentId: !GetAtt DatabaseServiceEndpoint.RootResourceId
+      PathPart: items
+
+# =========================================================
+# METHODS
+# =========================================================
+  CreateItem:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref DatabaseServiceEndpoint
+      ResourceId: !Ref Item
+      HttpMethod: POST
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DatabaseServiceFunction.Arn}/invocations
+
+  GetItem:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref DatabaseServiceEndpoint
+      ResourceId: !Ref ItemId
+      HttpMethod: GET
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DatabaseServiceFunction.Arn}/invocations
+
+  UpdateItem:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref DatabaseServiceEndpoint
+      ResourceId: !Ref ItemId
+      HttpMethod: PUT
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DatabaseServiceFunction.Arn}/invocations
+
+  DeleteItem:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref DatabaseServiceEndpoint
+      ResourceId: !Ref ItemId
+      HttpMethod: DELETE
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DatabaseServiceFunction.Arn}/invocations
+
+  GetItems:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref DatabaseServiceEndpoint
+      ResourceId: !Ref Items
+      HttpMethod: GET
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DatabaseServiceFunction.Arn}/invocations
+
+  BatchCreate:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref DatabaseServiceEndpoint
+      ResourceId: !Ref Items
+      HttpMethod: POST
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DatabaseServiceFunction.Arn}/invocations
+
+
+# =========================================================
+# DEPLOYMENT
+# =========================================================
+  Deployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn:
+      - CreateItem
+      - GetItem
+      - UpdateItem
+      - DeleteItem
+      - GetItems
+      - BatchCreate
+    Properties:
+      RestApiId: !Ref DatabaseServiceEndpoint
+      Description: !Sub "${AWS::StackName}"
+
+  Stage:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      StageName: !Ref Environment
+      RestApiId: !Ref DatabaseServiceEndpoint
+      DeploymentId: !Ref Deployment
+      MethodSettings:
+        - ResourcePath: "/*"
+          HttpMethod: "*"
+          LoggingLevel: INFO
+          MetricsEnabled: true
+          DataTraceEnabled: true
+
+# =========================================================
+# PERMISSION
+# =========================================================
+  LambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref DatabaseServiceFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${DatabaseServiceEndpoint}/*/*/*
+
+# =========================================================
+# OUTPUT
+# =========================================================
+Outputs:
+  ApiUrl:
+    Value: !Sub "https://${DatabaseServiceEndpoint}.execute-api.${AWS::Region}.amazonaws.com/${Environment}"

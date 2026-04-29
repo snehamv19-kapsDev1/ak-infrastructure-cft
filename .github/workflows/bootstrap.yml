@@ -1,4 +1,4 @@
-name: Bootstrap Infra
+name: Bootstrap Infrastructure deployment
 
 on:
   push:
@@ -27,10 +27,23 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-west-2
 
-      - name: Deploy Bootstrap Infra
+      - name: Deploy Infra
         run: |
           aws cloudformation deploy \
-            --template-file cft/base-infra.yaml \
-            --stack-name ${ENV}-jsvm-bootstrap \
+            --template-file cft/jsvm-code-artifact-infra.yaml \
+            --stack-name ${ENV}-jsvm-code-artifact-infra \
             --capabilities CAPABILITY_NAMED_IAM \
+            --no-fail-on-empty-changeset \
             --parameter-overrides Environment=$ENV
+
+      - name: Deploy Database Service Lambda
+        run: |
+          aws cloudformation deploy \
+            --template-file infra/database-service-infra.yaml \
+            --stack-name ${ENV}-jsvm-database-service \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --no-fail-on-empty-changeset \
+            --parameter-overrides \
+              Environment=${ENV} \
+              CodeBucket=${BUCKET} \
+              CodeKey=${CODE_KEY}

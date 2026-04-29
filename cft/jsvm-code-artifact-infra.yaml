@@ -27,12 +27,12 @@ Resources:
       Type: String
       Value: !Ref CodeBucket
 
-  EnvParam:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: !Sub "/jsvm/${Environment}/env"
-      Type: String
-      Value: !Ref Environment
+#  EnvParam:
+#    Type: AWS::SSM::Parameter
+#    Properties:
+#      Name: !Sub "/jsvm/${Environment}/env"
+#      Type: String
+#      Value: !Ref Environment
 
 Outputs:
   BucketName:

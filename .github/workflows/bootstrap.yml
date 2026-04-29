@@ -9,8 +9,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # ----------------------
+      # Checkout
+      # ----------------------
       - uses: actions/checkout@v4
 
+      # ----------------------
+      # ENV SETUP
+      # ----------------------
       - name: Set ENV
         run: |
           case "${GITHUB_REF_NAME}" in
@@ -20,6 +26,9 @@ jobs:
           esac
           echo "ENV=$ENV" >> $GITHUB_ENV
 
+      # ----------------------
+      # AWS AUTH
+      # ----------------------
       - name: AWS Auth
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -27,59 +36,80 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-west-2
 
-      - name: Put SSM Parameters
+      # ----------------------
+      # ENSURE SSM CONFIG (SOURCE OF TRUTH)
+      # ----------------------
+      - name: Ensure SSM config
         run: |
+          BUCKET="jsvm-${ENV}-code-artifacts"
+
           aws ssm put-parameter \
-            --name "/${ENV}/code-artifacts-bucket" \
-            --value "${ENV}-jsvm-code-artifacts" \
-            --type "String" \
-            --overwrite
-      
-          aws ssm put-parameter \
-            --name "/${ENV}/service-name" \
-            --value "jsvm" \
+            --name "/jsvm/${ENV}/code-artifacts-bucket" \
+            --value "$BUCKET" \
             --type "String" \
             --overwrite
 
-      - name: Get bucket from SSM
+      # ----------------------
+      # LOAD CONFIG FROM SSM
+      # ----------------------
+      - name: Load config from SSM
         run: |
           BUCKET=$(aws ssm get-parameter \
-          --name "/${ENV}/code-artifacts-bucket" \
-          --query "Parameter.Value" \
-          --output text)
-          
+            --name "/jsvm/${ENV}/code-artifacts-bucket" \
+            --query "Parameter.Value" \
+            --output text)
+
           echo "BUCKET=$BUCKET" >> $GITHUB_ENV
 
-      - name: Check S3 bucket exists
-        run: |
-          if aws s3 ls "s3://$BUCKET" 2>/dev/null; then
-            echo "BUCKET_EXISTS=true" >> $GITHUB_ENV
-          else
-            echo "BUCKET_EXISTS=false" >> $GITHUB_ENV
-          fi
-
-      - name: Print BUCKET_EXISTS
-        run: |
-          echo "BUCKET_EXISTS=$BUCKET_EXISTS"
-
-      - name: Deploy Infra
-        if: env.BUCKET_EXISTS == 'false'
+      # ----------------------
+      # BOOTSTRAP INFRA STACK (IDEMPOTENT CORE)
+      # ----------------------
+      - name: Deploy Bootstrap Infra Stack
         run: |
           aws cloudformation deploy \
             --template-file cfts/jsvm-code-artifact-infra.yaml \
-            --stack-name ${ENV}-jsvm-code-artifact-infra \
+            --stack-name jsvm-${ENV}-bootstrap \
             --capabilities CAPABILITY_NAMED_IAM \
             --no-fail-on-empty-changeset \
-            --parameter-overrides Environment=$ENV
+            --parameter-overrides \
+              Environment=$ENV \
+              BucketName=$BUCKET
 
+      # ----------------------
+      # SET LAMBDA CODE KEY
+      # ----------------------
+      - name: Set Code Key
+        run: |
+          echo "CODE_KEY=services/database-service/lambda.zip" >> $GITHUB_ENV
+
+      # ----------------------
+      # DEPLOY DATABASE SERVICE STACK (IDEMPOTENT)
+      # ----------------------
       - name: Deploy Database Service Lambda
         run: |
+          STACK=jsvm-${ENV}-database-service
+
           aws cloudformation deploy \
             --template-file cfts/database-service-infra.yaml \
-            --stack-name ${ENV}-jsvm-database-service \
+            --stack-name $STACK \
             --capabilities CAPABILITY_NAMED_IAM \
             --no-fail-on-empty-changeset \
             --parameter-overrides \
               Environment=${ENV} \
               CodeBucket=${BUCKET} \
               CodeKey=${CODE_KEY}
+
+      - name: Store API URL in SSM (Service Registry)
+        run: |
+          API_URL=$(aws cloudformation describe-stacks \
+            --stack-name ${ENV}-jsvm-database-service \
+            --query "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue" \
+            --output text)
+      
+          echo "API_URL=$API_URL"
+      
+          aws ssm put-parameter \
+            --name "/jsvm/${ENV}/services/database-service/api-url" \
+            --value "$API_URL" \
+            --type "String" \
+            --overwrite

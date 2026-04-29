@@ -87,11 +87,10 @@ jobs:
       # ----------------------
       - name: Deploy Database Service Lambda
         run: |
-          STACK=jsvm-${ENV}-database-service
 
           aws cloudformation deploy \
             --template-file cfts/database-service-infra.yaml \
-            --stack-name $STACK \
+            --stack-name ${ENV}-jsvm-database-service \
             --capabilities CAPABILITY_NAMED_IAM \
             --no-fail-on-empty-changeset \
             --parameter-overrides \
@@ -101,15 +100,15 @@ jobs:
 
       - name: Store API URL in SSM (Service Registry)
         run: |
-          API_URL=$(aws cloudformation describe-stacks \
+          DATABASE_SERVICE_API=$(aws cloudformation describe-stacks \
             --stack-name ${ENV}-jsvm-database-service \
-            --query "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue" \
+            --query "Stacks[0].Outputs[?OutputKey=='DatabaseServiceApi'].OutputValue" \
             --output text)
       
-          echo "API_URL=$API_URL"
+          echo "DATABASE_SERVICE_API=DATABASE_SERVICE_API"
       
           aws ssm put-parameter \
-            --name "/jsvm/${ENV}/services/database-service/api-url" \
-            --value "$API_URL" \
+            --name "/jsvm/${ENV}/services/database-service/api" \
+            --value "DATABASE_SERVICE_API" \
             --type "String" \
             --overwrite

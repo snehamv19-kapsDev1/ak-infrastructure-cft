@@ -17,16 +17,16 @@ Resources:
       VersioningConfiguration:
         Status: Enabled
 
-  ########################################
-  # SSM - SOURCE OF TRUTH
-  ########################################
-  CodeBucketParam:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: !Sub "/jsvm/${Environment}/code-bucket"
-      Type: String
-      Value: !Ref CodeBucket
-
+#  ########################################
+#  # SSM - SOURCE OF TRUTH
+#  ########################################
+#  CodeBucketParam:
+#    Type: AWS::SSM::Parameter
+#    Properties:
+#      Name: !Sub "/jsvm/${Environment}/code-bucket"
+#      Type: String
+#      Value: !Ref CodeBucket
+#
 Outputs:
   BucketName:
     Value: !Ref CodeBucket

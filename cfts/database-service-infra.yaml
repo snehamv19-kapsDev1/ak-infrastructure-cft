@@ -246,7 +246,7 @@ Resources:
       - OptionsMethod
     Properties:
       RestApiId: !Ref DatabaseServiceApi
-      Description: !Sub "deployment-${Environment}-${AWS::Timestamp}"
+      Description: !Sub "deployment-${Environment}"
 
 # =========================================================
 # STAGE

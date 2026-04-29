@@ -31,6 +31,6 @@ jobs:
         run: |
           aws cloudformation deploy \
             --template-file cft/base-infra.yaml \
-            --stack-name jsvm-bootstrap-${ENV} \
+            --stack-name ${ENV}-jsvm-bootstrap \
             --capabilities CAPABILITY_NAMED_IAM \
             --parameter-overrides Environment=$ENV

@@ -27,7 +27,19 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-west-2
 
-      - name: Deploy Infra
+      - name: Check if S3 bucket exists
+        id: bucket_check
+        run: |
+          BUCKET="${ENV}-jsvm-code-artifacts"
+      
+          if aws s3api head-bucket --bucket "$BUCKET" 2>/dev/null; then
+            echo "BUCKET_EXISTS=true" >> $GITHUB_ENV
+          else
+            echo "BUCKET_EXISTS=false" >> $GITHUB_ENV
+          fi
+
+      - name: Deploy Code Artifact Infra
+        if: env.BUCKET_EXISTS == 'false'
         run: |
           aws cloudformation deploy \
             --template-file cft/jsvm-code-artifact-infra.yaml \

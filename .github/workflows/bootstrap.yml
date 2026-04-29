@@ -62,15 +62,15 @@ jobs:
         run: |
           echo "BUCKET_EXISTS=$BUCKET_EXISTS"
 
-      - name: Deploy Infra
-        if: env.BUCKET_EXISTS == 'false'
-        run: |
-          aws cloudformation deploy \
-            --template-file cfts/jsvm-code-artifact-infra.yaml \
-            --stack-name ${ENV}-jsvm-code-artifact-infra \
-            --capabilities CAPABILITY_NAMED_IAM \
-            --no-fail-on-empty-changeset \
-            --parameter-overrides Environment=$ENV
+#      - name: Deploy Infra
+#        if: env.BUCKET_EXISTS == 'false'
+#        run: |
+#          aws cloudformation deploy \
+#            --template-file cfts/jsvm-code-artifact-infra.yaml \
+#            --stack-name ${ENV}-jsvm-code-artifact-infra \
+#            --capabilities CAPABILITY_NAMED_IAM \
+#            --no-fail-on-empty-changeset \
+#            --parameter-overrides Environment=$ENV
 
       - name: Deploy Database Service Lambda
         run: |

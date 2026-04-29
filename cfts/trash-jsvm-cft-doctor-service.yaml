@@ -1,0 +1,158 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Doctor CRUD using Lambda + API Gateway + S3 JSON (no SAM)
+
+Parameters:
+
+  CodeBucket:
+    Type: String
+
+  CodeKey:
+    Type: String
+
+Resources:
+
+  ### ---------------- IAM ROLE ----------------
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+
+      Policies:
+        - PolicyName: lambda-logs-s3
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "*"
+
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub arn:aws:s3:::${CodeBucket}
+                  - !Sub arn:aws:s3:::${CodeBucket}/*
+
+  ### ---------------- LAMBDAS ----------------
+  CreateDoctorFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: CreateDoctorFunction
+      Runtime: python3.11
+      Handler: handler.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 10
+      Code:
+        S3Bucket: !Ref CodeBucket
+        S3Key: !Ref CodeKey/createDoctor.zip
+      Environment:
+        Variables:
+          ENV: !Ref Environment
+          BUCKET: !Ref CodeBucket
+
+  GetDoctorFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: GetDoctorFunction
+      Runtime: python3.11
+      Handler: handler.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 10
+      Code:
+        S3Bucket: !Ref CodeBucket
+        S3Key: !Ref CodeKey/getDoctor.zip
+      Environment:
+        Variables:
+          ENV: !Ref Environment
+          BUCKET: !Ref CodeBucket
+
+  ### ---------------- API ----------------
+
+  DoctorApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: DoctorApi
+
+  DoctorResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !GetAtt DoctorApi.RootResourceId
+      PathPart: doctors
+      RestApiId: !Ref DoctorApi
+
+  DoctorIdResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !Ref DoctorResource
+      PathPart: "{id}"
+      RestApiId: !Ref DoctorApi
+
+  ### ---------------- METHODS ----------------
+
+  CreateDoctorMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref DoctorApi
+      ResourceId: !Ref DoctorResource
+      HttpMethod: POST
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CreateDoctorFunction.Arn}/invocations
+
+  GetDoctorMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref DoctorApi
+      ResourceId: !Ref DoctorIdResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetDoctorFunction.Arn}/invocations
+
+  ### ---------------- PERMISSIONS ----------------
+
+  LambdaInvokePermissionCreate:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref CreateDoctorFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${DoctorApi}/*
+
+  LambdaInvokePermissionGet:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref GetDoctorFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${DoctorApi}/*
+
+  ### ---------------- DEPLOY ----------------
+
+  ApiDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn:
+      - CreateDoctorMethod
+      - GetDoctorMethod
+    Properties:
+      RestApiId: !Ref DoctorApi
+      StageName: !Ref Environment
+
+Outputs:
+  ApiUrl:
+    Value: !Sub "https://${DoctorApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}/"

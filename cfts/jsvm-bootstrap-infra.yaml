@@ -1,0 +1,85 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Bootstrap Infra (S3 + SSM Registry)
+
+Parameters:
+  Environment:
+    Type: String
+    AllowedValues: [dev, test, prod]
+
+Resources:
+
+# =========================================================
+# CODE ZIP BUCKET
+# =========================================================
+  CodeBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${Environment}-jsvm-codezips"
+
+      VersioningConfiguration:
+        Status: Enabled
+
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+# =========================================================
+# DATABASE BUCKET
+# =========================================================
+  DatabaseBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${Environment}-jsvm-database"
+
+      VersioningConfiguration:
+        Status: Enabled
+
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+# =========================================================
+# SSM PARAMETERS (SOURCE OF TRUTH)
+# =========================================================
+
+  CodeBucketNameParam:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/jsvm/${Environment}/code-bucket/name"
+      Type: String
+      Value: !Ref CodeBucket
+
+  CodeBucketUrlParam:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/jsvm/${Environment}/code-bucket/url"
+      Type: String
+      Value: !Sub "s3://${CodeBucket}"
+
+  DatabaseBucketNameParam:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/jsvm/${Environment}/database-bucket/name"
+      Type: String
+      Value: !Ref DatabaseBucket
+
+  DatabaseBucketUrlParam:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/jsvm/${Environment}/database-bucket/url"
+      Type: String
+      Value: !Sub "s3://${DatabaseBucket}"
+
+# =========================================================
+# OUTPUTS (OPTIONAL)
+# =========================================================
+Outputs:
+  CodeBucket:
+    Value: !Ref CodeBucket
+
+  DatabaseBucket:
+    Value: !Ref DatabaseBucket

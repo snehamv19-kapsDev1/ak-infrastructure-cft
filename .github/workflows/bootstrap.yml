@@ -37,78 +37,14 @@ jobs:
           aws-region: us-west-2
 
       # ----------------------
-      # ENSURE SSM CONFIG (SOURCE OF TRUTH)
-      # ----------------------
-      - name: Ensure SSM config
-        run: |
-          BUCKET="jsvm-${ENV}-code-artifacts"
-
-          aws ssm put-parameter \
-            --name "/jsvm/${ENV}/code-artifacts-bucket" \
-            --value "$BUCKET" \
-            --type "String" \
-            --overwrite
-
-      # ----------------------
-      # LOAD CONFIG FROM SSM
-      # ----------------------
-      - name: Load config from SSM
-        run: |
-          BUCKET=$(aws ssm get-parameter \
-            --name "/jsvm/${ENV}/code-artifacts-bucket" \
-            --query "Parameter.Value" \
-            --output text)
-
-          echo "BUCKET=$BUCKET" >> $GITHUB_ENV
-
-      # ----------------------
-      # BOOTSTRAP INFRA STACK (IDEMPOTENT CORE)
+      # BOOTSTRAP CODE AND DATABASE S3 INFRA STACK
       # ----------------------
       - name: Deploy Bootstrap Infra Stack
         run: |
           aws cloudformation deploy \
-            --template-file cfts/jsvm-code-artifact-infra.yaml \
-            --stack-name jsvm-${ENV}-bootstrap \
+            --template-file cfts/jsvm-bootstrap-infra.yaml \
+            --stack-name ${ENV}-jsvm-bootstrap-infra \
             --capabilities CAPABILITY_NAMED_IAM \
             --no-fail-on-empty-changeset \
             --parameter-overrides \
-              Environment=$ENV \
-              BucketName=$BUCKET
-
-      # ----------------------
-      # SET LAMBDA CODE KEY
-      # ----------------------
-      - name: Set Code Key
-        run: |
-          echo "CODE_KEY=services/database-service/lambda.zip" >> $GITHUB_ENV
-
-      # ----------------------
-      # DEPLOY DATABASE SERVICE STACK (IDEMPOTENT)
-      # ----------------------
-      - name: Deploy Database Service Lambda
-        run: |
-
-          aws cloudformation deploy \
-            --template-file cfts/database-service-infra.yaml \
-            --stack-name ${ENV}-jsvm-database-service \
-            --capabilities CAPABILITY_NAMED_IAM \
-            --no-fail-on-empty-changeset \
-            --parameter-overrides \
-              Environment=${ENV} \
-              CodeBucket=${BUCKET} \
-              CodeKey=${CODE_KEY}
-
-      - name: Store API URL in SSM (Service Registry)
-        run: |
-          DATABASE_SERVICE_API=$(aws cloudformation describe-stacks \
-            --stack-name ${ENV}-jsvm-database-service \
-            --query "Stacks[0].Outputs[?OutputKey=='DatabaseServiceApi'].OutputValue" \
-            --output text)
-      
-          echo "DATABASE_SERVICE_API=DATABASE_SERVICE_API"
-      
-          aws ssm put-parameter \
-            --name "/jsvm/${ENV}/services/database-service/api" \
-            --value "DATABASE_SERVICE_API" \
-            --type "String" \
-            --overwrite
+              Environment=$ENV

@@ -38,11 +38,15 @@ jobs:
             echo "BUCKET_EXISTS=false" >> $GITHUB_ENV
           fi
 
+      - name: Print BUCKET_EXISTS
+        run: |
+          echo "BUCKET_EXISTS=$BUCKET_EXISTS"
+
       - name: Deploy Code Artifact Infra
         if: env.BUCKET_EXISTS == 'false'
         run: |
           aws cloudformation deploy \
-            --template-file cft/jsvm-code-artifact-infra.yaml \
+            --template-file cfts/jsvm-code-artifact-infra.yaml \
             --stack-name ${ENV}-jsvm-code-artifact-infra \
             --capabilities CAPABILITY_NAMED_IAM \
             --no-fail-on-empty-changeset \

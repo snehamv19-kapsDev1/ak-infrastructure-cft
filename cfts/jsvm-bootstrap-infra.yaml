@@ -6,6 +6,12 @@ Parameters:
     Type: String
     AllowedValues: [dev, test, prod]
 
+  CodeBucketParam:
+    Type: String
+
+  DatabaseBucketParam:
+    Type: String
+
 Resources:
 
 # =========================================================
@@ -14,7 +20,7 @@ Resources:
   CodeBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub "${Environment}-jsvm-codezips"
+      BucketName: !Sub "${Environment}-${CodeBucketParam}"
 
       VersioningConfiguration:
         Status: Enabled
@@ -31,7 +37,7 @@ Resources:
   DatabaseBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub "${Environment}-jsvm-database"
+      BucketName: !Sub "${Environment}-${DatabaseBucketParam}"
 
       VersioningConfiguration:
         Status: Enabled

@@ -49,28 +49,28 @@ Resources:
   CodeBucketNameParam:
     Type: AWS::SSM::Parameter
     Properties:
-      Name: !Sub "/jsvm/${Environment}/code-bucket/name"
+      Name: !Sub "/jsvm/${Environment}/code-bucket"
       Type: String
       Value: !Ref CodeBucket
 
   CodeBucketUrlParam:
     Type: AWS::SSM::Parameter
     Properties:
-      Name: !Sub "/jsvm/${Environment}/code-bucket/url"
+      Name: !Sub "/jsvm/${Environment}/code-bucket"
       Type: String
       Value: !Sub "s3://${CodeBucket}"
 
   DatabaseBucketNameParam:
     Type: AWS::SSM::Parameter
     Properties:
-      Name: !Sub "/jsvm/${Environment}/database-bucket/name"
+      Name: !Sub "/jsvm/${Environment}/database-bucket"
       Type: String
       Value: !Ref DatabaseBucket
 
   DatabaseBucketUrlParam:
     Type: AWS::SSM::Parameter
     Properties:
-      Name: !Sub "/jsvm/${Environment}/database-bucket/url"
+      Name: !Sub "/jsvm/${Environment}/database-bucket"
       Type: String
       Value: !Sub "s3://${DatabaseBucket}"
 

@@ -48,5 +48,5 @@ jobs:
             --no-fail-on-empty-changeset \
             --parameter-overrides \
               Environment=$ENV \
-              CodeBucketParam="jsvm-code-artifacts"
-              DatabaseBucketParam="jsvm-database-jsons"
+              CodeBucketParam=${ENV}-jsvm-code-artifacts \
+              DatabaseBucketParam=${ENV}-jsvm-database-jsons

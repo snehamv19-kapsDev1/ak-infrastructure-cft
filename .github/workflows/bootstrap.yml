@@ -49,5 +49,5 @@ jobs:
             --parameter-overrides \
               Environment=$ENV \
               CodeBucketParam=${ENV}-jsvm-code-artifacts \
-              DatabaseBucketParam=${ENV}-jsvm-database-jsons
+              DatabaseBucketParam=${ENV}-jsvm-database-jsons \
               ConfigurationBucketParam=${ENV}-jsvm-backend-configurations

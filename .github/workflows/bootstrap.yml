@@ -50,4 +50,4 @@ jobs:
               Environment=$ENV \
               CodeBucketParam=${ENV}-jsvm-code-artifacts \
               DatabaseBucketParam=${ENV}-jsvm-database-jsons
-              ConfigurationBucketNameParam=${ENV}-jsvm-backend-configurations
+              ConfigurationBucketParam=${ENV}-jsvm-backend-configurations

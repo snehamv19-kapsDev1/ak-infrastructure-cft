@@ -92,7 +92,8 @@ Resources:
               - GET
 
             AllowedOrigins:
-              - "*"
+              - "http://localhost:5173"
+              - "http://localhost:5174"
 
             ExposedHeaders:
               - ETag

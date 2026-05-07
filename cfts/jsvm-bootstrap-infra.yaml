@@ -4,12 +4,18 @@ Description: Bootstrap Infra (S3 + SSM Registry)
 Parameters:
   Environment:
     Type: String
-    AllowedValues: [dev, test, prod]
+    AllowedValues:
+      - dev
+      - test
+      - prod
 
   CodeBucketParam:
     Type: String
 
   DatabaseBucketParam:
+    Type: String
+
+  ConfigurationBucketParam:
     Type: String
 
 Resources:
@@ -19,6 +25,10 @@ Resources:
 # =========================================================
   CodeBucket:
     Type: AWS::S3::Bucket
+
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+
     Properties:
       BucketName: !Sub "${Environment}-${CodeBucketParam}"
 
@@ -36,6 +46,10 @@ Resources:
 # =========================================================
   DatabaseBucket:
     Type: AWS::S3::Bucket
+
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+
     Properties:
       BucketName: !Sub "${Environment}-${DatabaseBucketParam}"
 
@@ -49,11 +63,33 @@ Resources:
         RestrictPublicBuckets: true
 
 # =========================================================
+# CONFIGURATION BUCKET
+# =========================================================
+  ConfigurationBucket:
+    Type: AWS::S3::Bucket
+
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+
+    Properties:
+      BucketName: !Sub "${Environment}-${ConfigurationBucketParam}"
+
+      VersioningConfiguration:
+        Status: Enabled
+
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+
+# =========================================================
 # SSM PARAMETERS (SOURCE OF TRUTH)
 # =========================================================
 
   CodeBucketNameParam:
     Type: AWS::SSM::Parameter
+
     Properties:
       Name: !Sub "/${Environment}/jsvm/code-bucket-name"
       Type: String
@@ -61,6 +97,7 @@ Resources:
 
   CodeBucketUrlParam:
     Type: AWS::SSM::Parameter
+
     Properties:
       Name: !Sub "/${Environment}/jsvm/code-bucket-url"
       Type: String
@@ -68,6 +105,7 @@ Resources:
 
   DatabaseBucketNameParam:
     Type: AWS::SSM::Parameter
+
     Properties:
       Name: !Sub "/${Environment}/jsvm/database-bucket-name"
       Type: String
@@ -75,17 +113,42 @@ Resources:
 
   DatabaseBucketUrlParam:
     Type: AWS::SSM::Parameter
+
     Properties:
       Name: !Sub "/${Environment}/jsvm/database-bucket-url"
       Type: String
       Value: !Sub "s3://${DatabaseBucket}"
 
 # =========================================================
-# OUTPUTS (OPTIONAL)
+# CONFIGURATION BUCKET SSM PARAMETERS
+# =========================================================
+
+  ConfigurationBucketNameParam:
+    Type: AWS::SSM::Parameter
+
+    Properties:
+      Name: !Sub "/${Environment}/jsvm/configuration-bucket-name"
+      Type: String
+      Value: !Ref ConfigurationBucket
+
+  ConfigurationBucketUrlParam:
+    Type: AWS::SSM::Parameter
+
+    Properties:
+      Name: !Sub "/${Environment}/jsvm/configuration-bucket-url"
+      Type: String
+      Value: !Sub "s3://${ConfigurationBucket}"
+
+# =========================================================
+# OUTPUTS
 # =========================================================
 Outputs:
+
   CodeBucket:
     Value: !Ref CodeBucket
 
   DatabaseBucket:
     Value: !Ref DatabaseBucket
+
+  ConfigurationBucket:
+    Value: !Ref ConfigurationBucket

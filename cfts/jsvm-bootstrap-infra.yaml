@@ -83,6 +83,47 @@ Resources:
         IgnorePublicAcls: false
         RestrictPublicBuckets: false
 
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - "*"
+
+            AllowedMethods:
+              - GET
+
+            AllowedOrigins:
+              - "*"
+
+            ExposedHeaders:
+              - ETag
+
+            MaxAge: 3000
+
+# =========================================================
+# CONFIGURATION BUCKET POLICY
+# =========================================================
+  ConfigurationBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+
+    Properties:
+      Bucket: !Ref ConfigurationBucket
+
+      PolicyDocument:
+        Version: "2012-10-17"
+
+        Statement:
+          - Sid: PublicReadAccess
+
+            Effect: Allow
+
+            Principal: "*"
+
+            Action:
+              - s3:GetObject
+
+            Resource:
+              - !Sub "arn:aws:s3:::${ConfigurationBucket}/*"
+
 # =========================================================
 # SSM PARAMETERS (SOURCE OF TRUTH)
 # =========================================================
@@ -145,10 +186,17 @@ Resources:
 Outputs:
 
   CodeBucket:
+    Description: Code artifact bucket
     Value: !Ref CodeBucket
 
   DatabaseBucket:
+    Description: Database JSON bucket
     Value: !Ref DatabaseBucket
 
   ConfigurationBucket:
+    Description: Frontend configuration bucket
     Value: !Ref ConfigurationBucket
+
+  ConfigurationBucketUrl:
+    Description: Public configuration bucket URL
+    Value: !Sub "https://${ConfigurationBucket}.s3.${AWS::Region}.amazonaws.com"

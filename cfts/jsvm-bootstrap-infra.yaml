@@ -1,5 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Bootstrap Infrastructure (S3 + SSM Registry)
+
+Description: Bootstrap Infrastructure (S3 + Cognito + SSM Registry)
 
 Parameters:
   Environment:
@@ -17,6 +18,18 @@ Parameters:
 
   ConfigurationBucketParam:
     Type: String
+
+  CognitoDomainPrefix:
+    Type: String
+    Default: jsvm-hms-auth
+
+  FrontendCallbackUrl:
+    Type: String
+    Default: http://localhost:5173
+
+  FrontendLogoutUrl:
+    Type: String
+    Default: http://localhost:5173
 
 Resources:
 
@@ -126,6 +139,117 @@ Resources:
               - !Sub "arn:aws:s3:::${ConfigurationBucket}/*"
 
 # =========================================================
+# COGNITO USER POOL
+# =========================================================
+
+  CognitoUserPool:
+    Type: AWS::Cognito::UserPool
+
+    Properties:
+      UserPoolName: !Sub "${Environment}-jsvm-user-pool"
+
+      UsernameAttributes:
+        - email
+
+      AutoVerifiedAttributes:
+        - email
+
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireUppercase: true
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: false
+
+      Schema:
+        - Name: email
+          Required: true
+          Mutable: true
+
+# =========================================================
+# COGNITO USER POOL CLIENT
+# =========================================================
+
+  CognitoUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+
+    Properties:
+      ClientName: !Sub "${Environment}-jsvm-client"
+
+      UserPoolId: !Ref CognitoUserPool
+
+      GenerateSecret: false
+
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_USER_SRP_AUTH
+
+      AllowedOAuthFlowsUserPoolClient: true
+
+      AllowedOAuthFlows:
+        - code
+
+      AllowedOAuthScopes:
+        - email
+        - openid
+        - profile
+
+      CallbackURLs:
+        - !Ref FrontendCallbackUrl
+
+      LogoutURLs:
+        - !Ref FrontendLogoutUrl
+
+      SupportedIdentityProviders:
+        - COGNITO
+
+# =========================================================
+# COGNITO HOSTED UI DOMAIN
+# =========================================================
+
+  CognitoDomain:
+    Type: AWS::Cognito::UserPoolDomain
+
+    Properties:
+      Domain: !Sub "${Environment}-${CognitoDomainPrefix}"
+
+      UserPoolId: !Ref CognitoUserPool
+
+# =========================================================
+# COGNITO GROUPS
+# =========================================================
+
+  AdminGroup:
+    Type: AWS::Cognito::UserPoolGroup
+
+    Properties:
+      GroupName: ADMIN
+      UserPoolId: !Ref CognitoUserPool
+
+  DoctorGroup:
+    Type: AWS::Cognito::UserPoolGroup
+
+    Properties:
+      GroupName: DOCTOR
+      UserPoolId: !Ref CognitoUserPool
+
+  PatientGroup:
+    Type: AWS::Cognito::UserPoolGroup
+
+    Properties:
+      GroupName: PATIENT
+      UserPoolId: !Ref CognitoUserPool
+
+  ReceptionistGroup:
+    Type: AWS::Cognito::UserPoolGroup
+
+    Properties:
+      GroupName: RECEPTIONIST
+      UserPoolId: !Ref CognitoUserPool
+
+# =========================================================
 # SSM PARAMETERS (SOURCE OF TRUTH)
 # =========================================================
 
@@ -182,6 +306,44 @@ Resources:
       Value: !Sub "s3://${ConfigurationBucket}"
 
 # =========================================================
+# COGNITO SSM PARAMETERS
+# =========================================================
+
+  CognitoUserPoolIdParam:
+    Type: AWS::SSM::Parameter
+
+    Properties:
+      Name: !Sub "/${Environment}/jsvm/cognito-user-pool-id"
+      Type: String
+      Value: !Ref CognitoUserPool
+
+  CognitoClientIdParam:
+    Type: AWS::SSM::Parameter
+
+    Properties:
+      Name: !Sub "/${Environment}/jsvm/cognito-client-id"
+      Type: String
+      Value: !Ref CognitoUserPoolClient
+
+  CognitoIssuerParam:
+    Type: AWS::SSM::Parameter
+
+    Properties:
+      Name: !Sub "/${Environment}/jsvm/cognito-issuer"
+      Type: String
+
+      Value: !Sub "https://cognito-idp.${AWS::Region}.amazonaws.com/${CognitoUserPool}"
+
+  CognitoHostedUiParam:
+    Type: AWS::SSM::Parameter
+
+    Properties:
+      Name: !Sub "/${Environment}/jsvm/cognito-hosted-ui"
+      Type: String
+
+      Value: !Sub "https://${Environment}-${CognitoDomainPrefix}.auth.${AWS::Region}.amazoncognito.com"
+
+# =========================================================
 # OUTPUTS
 # =========================================================
 Outputs:
@@ -201,3 +363,21 @@ Outputs:
   ConfigurationBucketUrl:
     Description: Public configuration bucket URL
     Value: !Sub "https://${ConfigurationBucket}.s3.${AWS::Region}.amazonaws.com"
+
+  CognitoUserPoolId:
+    Description: Cognito User Pool ID
+    Value: !Ref CognitoUserPool
+
+  CognitoClientId:
+    Description: Cognito App Client ID
+    Value: !Ref CognitoUserPoolClient
+
+  CognitoIssuer:
+    Description: Cognito JWT Issuer
+
+    Value: !Sub "https://cognito-idp.${AWS::Region}.amazonaws.com/${CognitoUserPool}"
+
+  CognitoHostedUi:
+    Description: Cognito Hosted UI URL
+
+    Value: !Sub "https://${Environment}-${CognitoDomainPrefix}.auth.${AWS::Region}.amazoncognito.com"

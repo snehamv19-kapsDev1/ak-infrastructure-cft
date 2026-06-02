@@ -154,6 +154,9 @@ Resources:
       AutoVerifiedAttributes:
         - email
 
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: false
+
       Policies:
         PasswordPolicy:
           MinimumLength: 8
@@ -166,6 +169,11 @@ Resources:
         - Name: email
           Required: true
           Mutable: true
+
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_email
+            Priority: 1
 
 # =========================================================
 # COGNITO USER POOL CLIENT
@@ -196,6 +204,15 @@ Resources:
         - openid
         - profile
 
+      AccessTokenValidity: 1
+      IdTokenValidity: 1
+      RefreshTokenValidity: 30
+
+      TokenValidityUnits:
+        AccessToken: hours
+        IdToken: hours
+        RefreshToken: days
+
       CallbackURLs:
         - !Ref FrontendCallbackUrl
 
@@ -220,34 +237,37 @@ Resources:
 # =========================================================
 # COGNITO GROUPS
 # =========================================================
-
   AdminGroup:
     Type: AWS::Cognito::UserPoolGroup
 
     Properties:
       GroupName: ADMIN
       UserPoolId: !Ref CognitoUserPool
+      Precedence: 1
 
-  DoctorGroup:
+  BoardMemberGroup:
     Type: AWS::Cognito::UserPoolGroup
 
     Properties:
-      GroupName: DOCTOR
+      GroupName: BOARDMEMBER
       UserPoolId: !Ref CognitoUserPool
+      Precedence: 2
 
-  PatientGroup:
+  StaffMemberGroup:
     Type: AWS::Cognito::UserPoolGroup
 
     Properties:
-      GroupName: PATIENT
+      GroupName: STAFFMEMBER
       UserPoolId: !Ref CognitoUserPool
+      Precedence: 3
 
-  ReceptionistGroup:
+  UserGroup:
     Type: AWS::Cognito::UserPoolGroup
 
     Properties:
-      GroupName: RECEPTIONIST
+      GroupName: USER
       UserPoolId: !Ref CognitoUserPool
+      Precedence: 99
 
 # =========================================================
 # SSM PARAMETERS (SOURCE OF TRUTH)
@@ -343,6 +363,24 @@ Resources:
 
       Value: !Sub "https://${Environment}-${CognitoDomainPrefix}.auth.${AWS::Region}.amazoncognito.com"
 
+  AwsRegionParam:
+    Type: AWS::SSM::Parameter
+
+    Properties:
+      Name: !Sub "/${Environment}/jsvm/aws-region"
+      Type: String
+      Value: !Ref AWS::Region
+
+  CognitoLoginUrlParam:
+    Type: AWS::SSM::Parameter
+
+    Properties:
+      Name: !Sub "/${Environment}/jsvm/cognito-login-url"
+      Type: String
+
+      Value: !Sub >
+        https://${Environment}-${CognitoDomainPrefix}.auth.${AWS::Region}.amazoncognito.com/login
+
 # =========================================================
 # OUTPUTS
 # =========================================================
@@ -379,5 +417,10 @@ Outputs:
 
   CognitoHostedUi:
     Description: Cognito Hosted UI URL
-
     Value: !Sub "https://${Environment}-${CognitoDomainPrefix}.auth.${AWS::Region}.amazoncognito.com"
+
+  CognitoLoginUrl:
+    Description: Cognito Login URL
+
+    Value: !Sub >
+      https://${Environment}-${CognitoDomainPrefix}.auth.${AWS::Region}.amazoncognito.com/login

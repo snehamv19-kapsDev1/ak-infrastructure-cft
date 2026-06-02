@@ -144,9 +144,13 @@ Resources:
 
   CognitoUserPool:
     Type: AWS::Cognito::UserPool
+    DependsOn:
+      - PostConfirmationPermission
 
     Properties:
       UserPoolName: !Sub "${Environment}-jsvm-user-pool"
+      VerificationMessageTemplate:
+        DefaultEmailOption: CONFIRM_WITH_CODE
 
       UsernameAttributes:
         - email
@@ -175,6 +179,8 @@ Resources:
           - Name: verified_email
             Priority: 1
 
+      LambdaConfig:
+        PostConfirmation: !GetAtt PostConfirmationFunction.Arn
 # =========================================================
 # COGNITO USER POOL CLIENT
 # =========================================================
@@ -337,6 +343,15 @@ Resources:
       Type: String
       Value: !Ref CognitoUserPool
 
+  CognitoUserPoolArnParam:
+    Type: AWS::SSM::Parameter
+
+    Properties:
+      Name: !Sub "/${Environment}/jsvm/cognito-user-pool-arn"
+      Type: String
+      Value: !Sub arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPool}
+
+
   CognitoClientIdParam:
     Type: AWS::SSM::Parameter
 
@@ -381,6 +396,110 @@ Resources:
       Value: !Sub >
         https://${Environment}-${CognitoDomainPrefix}.auth.${AWS::Region}.amazoncognito.com/login
 
+  AdminGroupParam:
+    Type: AWS::SSM::Parameter
+
+    Properties:
+      Name: !Sub "/${Environment}/jsvm/groups/admin"
+      Type: String
+      Value: ADMIN
+
+  BoardMemberGroupParam:
+    Type: AWS::SSM::Parameter
+
+    Properties:
+      Name: !Sub "/${Environment}/jsvm/cognito-groups/boardmember"
+      Type: String
+      Value: BOARDMEMBER
+
+  StaffMemberGroupParam:
+    Type: AWS::SSM::Parameter
+
+    Properties:
+      Name: !Sub "/${Environment}/jsvm/cognito-groups/staffmember"
+      Type: String
+      Value: STAFFMEMBER
+
+  UserGroupParam:
+    Type: AWS::SSM::Parameter
+
+    Properties:
+      Name: !Sub "/${Environment}/jsvm/cognito-groups/user"
+      Type: String
+      Value: USER
+
+
+  PostConfirmationFunction:
+    Type: AWS::Lambda::Function
+
+    Properties:
+      FunctionName: !Sub "${Environment}-post-confirmation"
+
+      Runtime: python3.12
+
+      Handler: handler.lambda_handler
+
+      Role: !GetAtt PostConfirmationRole.Arn
+
+      Timeout: 10
+
+      Environment:
+        Variables:
+          DEFAULT_GROUP: USER
+
+    Code:
+      ZipFile: |
+        def lambda_handler(event, context):
+            return event
+
+  PostConfirmationRole:
+    Type: AWS::IAM::Role
+
+    Properties:
+      RoleName: !Sub "${Environment}-post-confirmation-role"
+
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+
+        Statement:
+          - Effect: Allow
+
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+
+            Action:
+              - sts:AssumeRole
+
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+      Policies:
+        - PolicyName: CognitoGroupAssignment
+
+          PolicyDocument:
+            Version: "2012-10-17"
+
+            Statement:
+              - Effect: Allow
+
+                Action:
+                  - cognito-idp:AdminAddUserToGroup
+
+                Resource:
+                  - !GetAtt CognitoUserPool.Arn
+  PostConfirmationPermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - PostConfirmationFunction
+      - CognitoUserPool
+    Properties:
+      Action: lambda:InvokeFunction
+
+      FunctionName: !Ref PostConfirmationFunction
+
+      Principal: cognito-idp.amazonaws.com
+
 # =========================================================
 # OUTPUTS
 # =========================================================
@@ -424,3 +543,11 @@ Outputs:
 
     Value: !Sub >
       https://${Environment}-${CognitoDomainPrefix}.auth.${AWS::Region}.amazoncognito.com/login
+
+  PostConfirmationFunctionName:
+    Description: Post Confirmation Lambda
+    Value: !Ref PostConfirmationFunction
+
+  PostConfirmationFunctionArn:
+    Description: Post Confirmation Lambda ARN
+    Value: !GetAtt PostConfirmationFunction.Arn

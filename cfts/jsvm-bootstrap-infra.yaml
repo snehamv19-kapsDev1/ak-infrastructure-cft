@@ -19,6 +19,9 @@ Parameters:
   ConfigurationBucketParam:
     Type: String
 
+  RBACBucketParam:
+    Type: String
+
   CognitoDomainPrefix:
     Type: String
     Default: jsvm-hms-auth
@@ -114,6 +117,26 @@ Resources:
             MaxAge: 3000
 
 # =========================================================
+# RBAC BUCKET
+# =========================================================
+    RBACBucket:
+        Type: AWS::S3::Bucket
+
+        DeletionPolicy: Retain
+        UpdateReplacePolicy: Retain
+
+        Properties:
+        BucketName: !Sub "${Environment}-${RBACBucketParam}"
+
+        VersioningConfiguration:
+            Status: Enabled
+
+        PublicAccessBlockConfiguration:
+            BlockPublicAcls: true
+            BlockPublicPolicy: true
+            IgnorePublicAcls: true
+            RestrictPublicBuckets: true
+# =========================================================
 # CONFIGURATION BUCKET POLICY
 # =========================================================
   ConfigurationBucketPolicy:
@@ -137,6 +160,7 @@ Resources:
 
             Resource:
               - !Sub "arn:aws:s3:::${ConfigurationBucket}/*"
+
 
 # =========================================================
 # COGNITO USER POOL
@@ -308,6 +332,22 @@ Resources:
       Type: String
       Value: !Sub "s3://${DatabaseBucket}"
 
+  RBACBucketNameParam:
+    Type: AWS::SSM::Parameter
+
+    Properties:
+      Name: !Sub "/${Environment}/jsvm/rbac-bucket-name"
+      Type: String
+      Value: !Ref RBACBucket
+
+  RBACBucketUrlParam:
+    Type: AWS::SSM::Parameter
+
+    Properties:
+      Name: !Sub "/${Environment}/jsvm/rbac-bucket-url"
+      Type: String
+      Value: !Sub "s3://${RBACBucket}"
+
 # =========================================================
 # CONFIGURATION BUCKET SSM PARAMETERS
 # =========================================================
@@ -471,4 +511,6 @@ Outputs:
     Value: !Sub >
       https://${Environment}-${CognitoDomainPrefix}.auth.${AWS::Region}.amazoncognito.com/login
 
-  # PostConfirmation Lambda outputs removed
+  RBACBucket:
+    Description: Database JSON bucket
+    Value: !Ref RBACBucket

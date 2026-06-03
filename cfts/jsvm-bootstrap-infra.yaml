@@ -428,28 +428,28 @@ Resources:
       Type: String
       Value: USER
 
+PostConfirmationFunction:
+  Type: AWS::Lambda::Function
 
-  PostConfirmationFunction:
-    Type: AWS::Lambda::Function
+  Properties:
+    FunctionName: !Sub "${Environment}-post-confirmation"
 
-    Properties:
-      FunctionName: !Sub "${Environment}-post-confirmation"
+    Runtime: python3.12
 
-      Runtime: python3.12
+    Handler: index.lambda_handler
 
-      Handler: handler.lambda_handler
+    Role: !GetAtt PostConfirmationRole.Arn
 
-      Role: !GetAtt PostConfirmationRole.Arn
+    Timeout: 10
 
-      Timeout: 10
-
-      Environment:
-        Variables:
-          DEFAULT_GROUP: USER
+    Environment:
+      Variables:
+        DEFAULT_GROUP: USER
 
     Code:
       ZipFile: |
         def lambda_handler(event, context):
+            print("Post Confirmation Event:", event)
             return event
 
   PostConfirmationRole:

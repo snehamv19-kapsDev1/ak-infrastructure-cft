@@ -51,3 +51,4 @@ jobs:
               CodeBucketParam=${ENV}-jsvm-code-artifacts \
               DatabaseBucketParam=${ENV}-jsvm-database-jsons \
               ConfigurationBucketParam=${ENV}-jsvm-backend-configurations
+              RBACBucketParam=${ENV}-jsvm-rbac-configurations

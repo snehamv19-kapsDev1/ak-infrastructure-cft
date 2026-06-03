@@ -119,23 +119,23 @@ Resources:
 # =========================================================
 # RBAC BUCKET
 # =========================================================
-    RBACBucket:
-        Type: AWS::S3::Bucket
+  RBACBucket:
+    Type: AWS::S3::Bucket
 
-        DeletionPolicy: Retain
-        UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
 
-        Properties:
-        BucketName: !Sub "${Environment}-${RBACBucketParam}"
+    Properties:
+      BucketName: !Sub "${Environment}-${RBACBucketParam}"
 
-        VersioningConfiguration:
-            Status: Enabled
+      VersioningConfiguration:
+        Status: Enabled
 
-        PublicAccessBlockConfiguration:
-            BlockPublicAcls: true
-            BlockPublicPolicy: true
-            IgnorePublicAcls: true
-            RestrictPublicBuckets: true
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
 # =========================================================
 # CONFIGURATION BUCKET POLICY
 # =========================================================
